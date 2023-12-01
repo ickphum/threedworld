@@ -13,6 +13,9 @@ open class ShaderProgram( context: Context, vertexShaderSourceFileName: String, 
     protected val A_COLOR = "a_Color"
     protected val A_TEXTURE_COORDINATES = "a_TextureCoordinates"
     protected val U_COLOR = "u_Color"
+    protected val U_TIME = "u_Time"
+    protected val A_DIRECTION_VECTOR = "a_DirectionVector"
+    protected val A_PARTICLE_START_TIME = "a_ParticleStartTime"
 
     protected var program =
         ShaderHelper.buildProgram(context, vertexShaderSourceFileName, fragmentShaderSourceFileName)
