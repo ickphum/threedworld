@@ -8,17 +8,20 @@ import android.opengl.GLES20.GL_ONE
 import android.opengl.GLES20.glBlendFunc
 import android.opengl.GLES20.glClear
 import android.opengl.GLES20.glClearColor
+import android.opengl.GLES20.glDisable
 import android.opengl.GLES20.glEnable
 import android.opengl.GLES20.glViewport
 import android.opengl.GLSurfaceView
-import android.opengl.Matrix.invertM
 import android.opengl.Matrix.multiplyMM
+import android.opengl.Matrix.rotateM
 import android.opengl.Matrix.setIdentityM
 import android.opengl.Matrix.translateM
 import android.util.Log
 import com.ickphum.threedworld.objects.ParticleShooter
 import com.ickphum.threedworld.objects.ParticleSystem
+import com.ickphum.threedworld.objects.Skybox
 import com.ickphum.threedworld.programs.ParticleShaderProgram
+import com.ickphum.threedworld.programs.SkyboxShaderProgram
 import com.ickphum.threedworld.util.Geometry
 import com.ickphum.threedworld.util.TextureHelper
 import javax.microedition.khronos.opengles.GL10
@@ -46,13 +49,17 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
 
     lateinit var particleDirection: Geometry.Vector
 
-    private var texture = 0;
+    private var particleTexture = 0
+
+    private lateinit var skyboxProgram: SkyboxShaderProgram
+    private lateinit var skybox: Skybox
+    private var skyboxTexture = 0
+
+    private var xRotation = 0f
+    private var yRotation = 0f
 
     override fun onSurfaceCreated(glUnused: GL10?, p1: javax.microedition.khronos.egl.EGLConfig?) {
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE);
 
         particleProgram = ParticleShaderProgram(context);
         particleSystem = ParticleSystem(10000);
@@ -78,20 +85,23 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
             speedVariance
         )
         blueParticleShooter = ParticleShooter(
-            Geometry.Point(0.8f, 0f, 0f),
+            Geometry.Point(0.8f, 1f, 0f),
             particleDirection,
             Color.rgb(5, 50, 255),
             angleVarianceInDegrees,
             speedVariance
         )
 
-        texture = TextureHelper.loadTexture(context, context.resources.getIdentifier(
-            "particle_texture",
-            "drawable",
-            context.packageName
-        ))
-        Log.w( TAG, "packageName ${context.packageName}, texture $texture")
+        particleTexture = TextureHelper.loadTexture(context, R.drawable.particle_texture)
 
+        val i = R.drawable.particle_texture
+
+        skyboxProgram = SkyboxShaderProgram( context )
+        skybox = Skybox()
+        skyboxTexture = TextureHelper.loadCubeMap( context,
+            intArrayOf(R.drawable.left, R.drawable.right,
+                R.drawable.bottom, R.drawable.top,
+                R.drawable.front, R.drawable.back))
     }
 
     override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
@@ -101,25 +111,57 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
             projectionMatrix, 45f,
             width.toFloat() / height.toFloat(), 1f, 10f
         )
-
-        setIdentityM(viewMatrix, 0);
-        translateM(viewMatrix, 0, 0f, -1.5f, -5f);
-        multiplyMM(viewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
     }
 
     override fun onDrawFrame(glUnused: GL10?) {
         // Clear the rendering surface.
         glClear(GL_COLOR_BUFFER_BIT)
 
+        drawSkybox()
+        drawParticles()
+    }
+
+    private fun drawSkybox() {
+        setIdentityM(viewMatrix, 0);
+        rotateM(viewMatrix, 0, -yRotation, 1f, 0f, 0f);
+        rotateM(viewMatrix, 0, -xRotation, 0f, 1f, 0f);
+        multiplyMM(viewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
+
+        skyboxProgram.useProgram()
+        skyboxProgram.setUniforms(viewProjectionMatrix, skyboxTexture)
+        skybox.bindData(skyboxProgram)
+        skybox.draw()
+    }
+    private fun drawParticles() {
         val currentTime = (System.nanoTime() - globalStartTime) / 1000000000f
-        redParticleShooter.addParticles(particleSystem, currentTime, 5)
-        greenParticleShooter.addParticles(particleSystem, currentTime, 5)
-        blueParticleShooter.addParticles(particleSystem, currentTime, 5)
+        redParticleShooter.addParticles(particleSystem, currentTime, 1)
+        greenParticleShooter.addParticles(particleSystem, currentTime, 1)
+        blueParticleShooter.addParticles(particleSystem, currentTime, 1)
+
+        setIdentityM(viewMatrix, 0);
+        rotateM(viewMatrix, 0, -yRotation, 1f, 0f, 0f)
+        rotateM(viewMatrix, 0, -xRotation, 0f, 1f, 0f)
+        translateM(viewMatrix, 0, 0f, -1.5f, -5f)
+        multiplyMM(viewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
+
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_ONE, GL_ONE)
+
         particleProgram.useProgram()
-        particleProgram.setUniforms(viewProjectionMatrix, currentTime, texture)
+        particleProgram.setUniforms(viewProjectionMatrix, currentTime, particleTexture)
         particleSystem.bindData(particleProgram)
         particleSystem.draw()
+        glDisable(GL_BLEND)
+    }
 
+    fun handleTouchDrag(deltaX: Float, deltaY: Float) {
+        Log.d( TAG, "Move by $deltaX $deltaY")
+        xRotation += deltaX / 16f;
+        yRotation += deltaY / 16f;
+        if (yRotation < -90)
+            yRotation = -90f;
+        else if (yRotation > 90)
+            yRotation = 90f;
     }
 
 }

@@ -1,0 +1,33 @@
+package com.ickphum.threedworld.programs
+
+import android.R
+import android.content.Context
+import android.opengl.GLES20.GL_TEXTURE0
+import android.opengl.GLES20.GL_TEXTURE_CUBE_MAP
+import android.opengl.GLES20.glActiveTexture
+import android.opengl.GLES20.glBindTexture
+import android.opengl.GLES20.glGetAttribLocation
+import android.opengl.GLES20.glGetUniformLocation
+import android.opengl.GLES20.glUniform1i
+import android.opengl.GLES20.glUniformMatrix4fv
+
+
+class SkyboxShaderProgram ( context: Context )
+    : ShaderProgram( context, "skybox_vertex_shader.glsl", "skybox_fragment_shader.glsl" )
+{
+
+    private var uMatrixLocation = glGetUniformLocation(program, U_MATRIX)
+    private var uTextureUnitLocation = glGetUniformLocation(program, U_TEXTURE_UNIT)
+    private var aPositionLocation = glGetAttribLocation(program, A_POSITION)
+
+    fun setUniforms(matrix: FloatArray?, textureId: Int) {
+        glUniformMatrix4fv(uMatrixLocation, 1, false, matrix, 0)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_CUBE_MAP, textureId)
+        glUniform1i(uTextureUnitLocation, 0)
+    }
+
+    fun getPositionAttributeLocation(): Int {
+        return aPositionLocation
+    }
+}
