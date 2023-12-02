@@ -1,6 +1,6 @@
 package com.ickphum.threedworld.programs
 
-import android.R
+import com.ickphum.threedworld.R
 import android.content.Context
 import android.opengl.GLES20.GL_TEXTURE0
 import android.opengl.GLES20.GL_TEXTURE_CUBE_MAP
@@ -13,7 +13,7 @@ import android.opengl.GLES20.glUniformMatrix4fv
 
 
 class SkyboxShaderProgram ( context: Context )
-    : ShaderProgram( context, "skybox_vertex_shader.glsl", "skybox_fragment_shader.glsl" )
+    : ShaderProgram( context, R.raw.skybox_vertex_shader, R.raw.skybox_fragment_shader )
 {
 
     private var uMatrixLocation = glGetUniformLocation(program, U_MATRIX)

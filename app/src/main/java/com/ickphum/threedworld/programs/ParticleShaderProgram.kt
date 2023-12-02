@@ -10,11 +10,11 @@ import android.opengl.GLES20.glGetUniformLocation
 import android.opengl.GLES20.glUniform1f
 import android.opengl.GLES20.glUniform1i
 import android.opengl.GLES20.glUniformMatrix4fv
+import com.ickphum.threedworld.R
 
 
 class ParticleShaderProgram(context: Context)
-    : ShaderProgram( context, "particle_vertex_shader.glsl",
-        "particle_fragment_shader.glsl" )
+    : ShaderProgram( context, R.raw.particle_vertex_shader, R.raw.particle_fragment_shader )
 {
     // Uniform locations
     private val uMatrixLocation = glGetUniformLocation(program, U_MATRIX)
