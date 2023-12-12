@@ -74,6 +74,8 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     private var xRotation = 0f
     private var yRotation = 0f
 
+    private val vectorToLight = Geometry.Vector(0.61f, 0.64f, -0.47f).normalize()
+
     override fun onSurfaceCreated(glUnused: GL10?, p1: javax.microedition.khronos.egl.EGLConfig?) {
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
         glEnable(GL_DEPTH_TEST)
@@ -203,7 +205,7 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
         scaleM(modelMatrix, 0, 100f, 10f, 100f)
         updateMvpMatrix()
         heightmapProgram.useProgram()
-        heightmapProgram.setUniforms(modelViewProjectionMatrix)
+        heightmapProgram.setUniforms(modelViewProjectionMatrix, vectorToLight)
         heightmap.bindData(heightmapProgram)
         heightmap.draw()
     }

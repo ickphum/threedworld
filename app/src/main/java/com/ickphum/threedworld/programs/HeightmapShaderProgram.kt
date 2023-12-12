@@ -1,25 +1,19 @@
 package com.ickphum.threedworld.programs
 
 import android.content.Context
-import android.opengl.GLES20.GL_TEXTURE0
-import android.opengl.GLES20.GL_TEXTURE1
-import android.opengl.GLES20.GL_TEXTURE_2D
-import android.opengl.GLES20.glActiveTexture
-import android.opengl.GLES20.glBindTexture
 import android.opengl.GLES20.glGetAttribLocation
 import android.opengl.GLES20.glGetUniformLocation
-import android.opengl.GLES20.glUniform1i
-import android.opengl.GLES20.glUniform3fv
-import android.opengl.GLES20.glUniform4fv
+import android.opengl.GLES20.glUniform3f
 import android.opengl.GLES20.glUniformMatrix4fv
 import com.ickphum.threedworld.R
+import com.ickphum.threedworld.util.Geometry
 
 
 class HeightmapShaderProgram( context: Context ) :
     ShaderProgram( context, R.raw.heightmap_vertex_shader, R.raw.heightmap_fragment_shader )
 {
 
-//    private val uVectorToLightLocation = glGetUniformLocation(program, U_VECTOR_TO_LIGHT);
+    private val uVectorToLightLocation = glGetUniformLocation(program, U_VECTOR_TO_LIGHT);
 //    private val uMVMatrixLocation = glGetUniformLocation(program, U_MV_MATRIX);
 //    private val uIT_MVMatrixLocation = glGetUniformLocation(program, U_IT_MV_MATRIX);
 //    private val uMVPMatrixLocation = glGetUniformLocation(program, U_MATRIX);
@@ -32,14 +26,14 @@ class HeightmapShaderProgram( context: Context ) :
 //    private val uTextureUnitLocation2 = glGetUniformLocation(program, U_TEXTURE_UNIT_2);
 
     private val aPositionLocation = glGetAttribLocation(program, A_POSITION);
-//    private val aNormalLocation = glGetAttribLocation(program, A_NORMAL);
+    private val aNormalLocation = glGetAttribLocation(program, A_NORMAL);
 //    private val aTextureCoordinatesLocation = glGetAttribLocation(program, A_TEXTURE_COORDINATES);
 
     fun setUniforms(
 //        mvMatrix: FloatArray?,
 //        it_mvMatrix: FloatArray?,
         mvpMatrix: FloatArray,
-//        vectorToDirectionalLight: FloatArray?,
+        vectorToLight: Geometry.Vector,
 //        pointLightPositions: FloatArray?,
 //        pointLightColors: FloatArray?,
 //        grassTextureId: Int,
@@ -48,7 +42,7 @@ class HeightmapShaderProgram( context: Context ) :
 //        glUniformMatrix4fv(uMVMatrixLocation, 1, false, mvMatrix, 0)
 //        glUniformMatrix4fv(uIT_MVMatrixLocation, 1, false, it_mvMatrix, 0)
         glUniformMatrix4fv(uMatrixLocation, 1, false, mvpMatrix, 0)
-//        glUniform3fv(uVectorToLightLocation, 1, vectorToDirectionalLight, 0)
+        glUniform3f(uVectorToLightLocation, vectorToLight.x, vectorToLight.y, vectorToLight.z);
 //        glUniform4fv(uPointLightPositionsLocation, 3, pointLightPositions, 0)
 //        glUniform3fv(uPointLightColorsLocation, 3, pointLightColors, 0)
 //
@@ -67,10 +61,10 @@ class HeightmapShaderProgram( context: Context ) :
         return aPositionLocation
     }
 
-//    fun getNormalAttributeLocation(): Int {
-//        return aNormalLocation
-//    }
-//
+    fun getNormalAttributeLocation(): Int {
+        return aNormalLocation
+    }
+
 //    fun getTextureCoordinatesAttributeLocation(): Int {
 //        return aTextureCoordinatesLocation
 //    }
