@@ -2,24 +2,35 @@ package com.ickphum.threedworld
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.opengl.GLES20.GL_BLEND
 import android.opengl.GLES20.GL_COLOR_BUFFER_BIT
+import android.opengl.GLES20.GL_CULL_FACE
+import android.opengl.GLES20.GL_DEPTH_BUFFER_BIT
+import android.opengl.GLES20.GL_DEPTH_TEST
+import android.opengl.GLES20.GL_LEQUAL
+import android.opengl.GLES20.GL_LESS
 import android.opengl.GLES20.GL_ONE
 import android.opengl.GLES20.glBlendFunc
 import android.opengl.GLES20.glClear
 import android.opengl.GLES20.glClearColor
+import android.opengl.GLES20.glDepthFunc
+import android.opengl.GLES20.glDepthMask
 import android.opengl.GLES20.glDisable
 import android.opengl.GLES20.glEnable
 import android.opengl.GLES20.glViewport
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix.multiplyMM
 import android.opengl.Matrix.rotateM
+import android.opengl.Matrix.scaleM
 import android.opengl.Matrix.setIdentityM
 import android.opengl.Matrix.translateM
 import android.util.Log
+import com.ickphum.threedworld.objects.Heightmap
 import com.ickphum.threedworld.objects.ParticleShooter
 import com.ickphum.threedworld.objects.ParticleSystem
 import com.ickphum.threedworld.objects.Skybox
+import com.ickphum.threedworld.programs.HeightmapShaderProgram
 import com.ickphum.threedworld.programs.ParticleShaderProgram
 import com.ickphum.threedworld.programs.SkyboxShaderProgram
 import com.ickphum.threedworld.util.Geometry
@@ -37,8 +48,10 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     private val modelMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
     private val viewProjectionMatrix = FloatArray(16)
+    private val viewMatrixForSkybox = FloatArray(16)
     private val modelViewProjectionMatrix = FloatArray(16)
     private val invertedViewProjectionMatrix = FloatArray(16)
+    private val tempMatrix = FloatArray(16)
 
     private lateinit var particleProgram: ParticleShaderProgram
     private lateinit var particleSystem: ParticleSystem
@@ -55,11 +68,16 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     private lateinit var skybox: Skybox
     private var skyboxTexture = 0
 
+    private lateinit var heightmapProgram: HeightmapShaderProgram
+    private lateinit var heightmap: Heightmap
+
     private var xRotation = 0f
     private var yRotation = 0f
 
     override fun onSurfaceCreated(glUnused: GL10?, p1: javax.microedition.khronos.egl.EGLConfig?) {
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_CULL_FACE)
 
         particleProgram = ParticleShaderProgram(context);
         particleSystem = ParticleSystem(10000);
@@ -85,7 +103,7 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
             speedVariance
         )
         blueParticleShooter = ParticleShooter(
-            Geometry.Point(0.8f, 1f, 0f),
+            Geometry.Point(0.8f, 0.2f, 0f),
             particleDirection,
             Color.rgb(5, 50, 255),
             angleVarianceInDegrees,
@@ -102,6 +120,10 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
             intArrayOf(R.drawable.left, R.drawable.right,
                 R.drawable.bottom, R.drawable.top,
                 R.drawable.front, R.drawable.back))
+
+        heightmapProgram = HeightmapShaderProgram( context )
+        heightmap = Heightmap( ( context.resources.getDrawable( R.drawable.heightmap ) as BitmapDrawable ).bitmap )
+
     }
 
     override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
@@ -109,28 +131,49 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
 
         MatrixHelper.perspectiveM(
             projectionMatrix, 45f,
-            width.toFloat() / height.toFloat(), 1f, 10f
+            width.toFloat() / height.toFloat(), 1f, 100f
         )
+        updateViewMatrices()
     }
 
     override fun onDrawFrame(glUnused: GL10?) {
         // Clear the rendering surface.
-        glClear(GL_COLOR_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT )
 
         drawSkybox()
+        drawHeightmap()
         drawParticles()
     }
 
+    private fun updateViewMatrices() {
+        setIdentityM(viewMatrix, 0)
+        rotateM(viewMatrix, 0, -yRotation, 1f, 0f, 0f)
+        rotateM(viewMatrix, 0, -xRotation, 0f, 1f, 0f)
+        System.arraycopy(viewMatrix, 0, viewMatrixForSkybox, 0, viewMatrix.size )
+        // We want the translation to apply to the regular view matrix, and not the skybox.
+        translateM(viewMatrix, 0, 0f, -1.5f, -5f)
+    }
+
+    private fun updateMvpMatrix() {
+        multiplyMM(tempMatrix, 0, viewMatrix, 0, modelMatrix, 0)
+        multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, tempMatrix, 0)
+    }
+
+    private fun updateMvpMatrixForSkybox() {
+        multiplyMM(tempMatrix, 0, viewMatrixForSkybox, 0, modelMatrix, 0)
+        multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, tempMatrix, 0)
+    }
+
     private fun drawSkybox() {
-        setIdentityM(viewMatrix, 0);
-        rotateM(viewMatrix, 0, -yRotation, 1f, 0f, 0f);
-        rotateM(viewMatrix, 0, -xRotation, 0f, 1f, 0f);
-        multiplyMM(viewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
+        setIdentityM(modelMatrix, 0);
+        updateMvpMatrixForSkybox();
 
         skyboxProgram.useProgram()
-        skyboxProgram.setUniforms(viewProjectionMatrix, skyboxTexture)
+        skyboxProgram.setUniforms(modelViewProjectionMatrix, skyboxTexture)
         skybox.bindData(skyboxProgram)
+        glDepthFunc(GL_LEQUAL);
         skybox.draw()
+        glDepthFunc(GL_LESS);
     }
     private fun drawParticles() {
         val currentTime = (System.nanoTime() - globalStartTime) / 1000000000f
@@ -138,20 +181,31 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
         greenParticleShooter.addParticles(particleSystem, currentTime, 1)
         blueParticleShooter.addParticles(particleSystem, currentTime, 1)
 
-        setIdentityM(viewMatrix, 0);
-        rotateM(viewMatrix, 0, -yRotation, 1f, 0f, 0f)
-        rotateM(viewMatrix, 0, -xRotation, 0f, 1f, 0f)
-        translateM(viewMatrix, 0, 0f, -1.5f, -5f)
-        multiplyMM(viewProjectionMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
+        setIdentityM(modelMatrix, 0);
+        updateMvpMatrix();
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_ONE, GL_ONE)
 
+        glDepthMask( false )
+
         particleProgram.useProgram()
-        particleProgram.setUniforms(viewProjectionMatrix, currentTime, particleTexture)
+        particleProgram.setUniforms(modelViewProjectionMatrix, currentTime, particleTexture)
         particleSystem.bindData(particleProgram)
         particleSystem.draw()
+
+        glDepthMask( true )
         glDisable(GL_BLEND)
+    }
+
+    private fun drawHeightmap() {
+        setIdentityM(modelMatrix, 0)
+        scaleM(modelMatrix, 0, 100f, 10f, 100f)
+        updateMvpMatrix()
+        heightmapProgram.useProgram()
+        heightmapProgram.setUniforms(modelViewProjectionMatrix)
+        heightmap.bindData(heightmapProgram)
+        heightmap.draw()
     }
 
     fun handleTouchDrag(deltaX: Float, deltaY: Float) {
@@ -162,6 +216,8 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
             yRotation = -90f;
         else if (yRotation > 90)
             yRotation = 90f;
+        updateViewMatrices()
+
     }
 
 }
