@@ -20,11 +20,14 @@ import android.opengl.GLES20.glDisable
 import android.opengl.GLES20.glEnable
 import android.opengl.GLES20.glViewport
 import android.opengl.GLSurfaceView
+import android.opengl.Matrix.invertM
 import android.opengl.Matrix.multiplyMM
+import android.opengl.Matrix.multiplyMV
 import android.opengl.Matrix.rotateM
 import android.opengl.Matrix.scaleM
 import android.opengl.Matrix.setIdentityM
 import android.opengl.Matrix.translateM
+import android.opengl.Matrix.transposeM
 import android.util.Log
 import com.ickphum.threedworld.objects.Heightmap
 import com.ickphum.threedworld.objects.ParticleShooter
@@ -52,6 +55,8 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     private val modelViewProjectionMatrix = FloatArray(16)
     private val invertedViewProjectionMatrix = FloatArray(16)
     private val tempMatrix = FloatArray(16)
+    private val modelViewMatrix = FloatArray(16)
+    private val it_modelViewMatrix = FloatArray(16)
 
     private lateinit var particleProgram: ParticleShaderProgram
     private lateinit var particleSystem: ParticleSystem
@@ -74,7 +79,18 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     private var xRotation = 0f
     private var yRotation = 0f
 
-    private val vectorToLight = Geometry.Vector(0.30f, 0.35f, -0.89f).normalize()
+    val vectorToLight = floatArrayOf(0.30f, 0.35f, -0.89f, 0f)
+
+    private val pointLightPositions = floatArrayOf(
+        -1f, 1f, 0f, 1f,
+        0f, 1f, 0f, 1f,
+        1f, 1f, 0f, 1f
+    )
+    private val pointLightColors = floatArrayOf(
+        1.00f, 0.20f, 0.02f,
+        0.02f, 0.15f, 0.02f,
+        0.02f, 0.20f, 1.00f
+    )
 
     override fun onSurfaceCreated(glUnused: GL10?, p1: javax.microedition.khronos.egl.EGLConfig?) {
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
@@ -98,14 +114,14 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
             speedVariance
         )
         greenParticleShooter = ParticleShooter(
-            Geometry.Point(0f, 0.5f, 0f),
+            Geometry.Point(0f, 0f, 0f),
             particleDirection,
             Color.rgb(25, 255, 25),
             angleVarianceInDegrees,
             speedVariance
         )
         blueParticleShooter = ParticleShooter(
-            Geometry.Point(0.8f, 0.2f, 0f),
+            Geometry.Point(0.8f, 0f, 0f),
             particleDirection,
             Color.rgb(5, 50, 255),
             angleVarianceInDegrees,
@@ -157,8 +173,14 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     }
 
     private fun updateMvpMatrix() {
-        multiplyMM(tempMatrix, 0, viewMatrix, 0, modelMatrix, 0)
-        multiplyMM(modelViewProjectionMatrix, 0, projectionMatrix, 0, tempMatrix, 0)
+        multiplyMM(modelViewMatrix, 0, viewMatrix, 0, modelMatrix, 0)
+        invertM(tempMatrix, 0, modelViewMatrix, 0)
+        transposeM(it_modelViewMatrix, 0, tempMatrix, 0)
+        multiplyMM(
+            modelViewProjectionMatrix, 0,
+            projectionMatrix, 0,
+            modelViewMatrix, 0
+        )
     }
 
     private fun updateMvpMatrixForSkybox() {
@@ -204,8 +226,20 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
         setIdentityM(modelMatrix, 0)
         scaleM(modelMatrix, 0, 100f, 10f, 100f)
         updateMvpMatrix()
+
+        val vectorToLightInEyeSpace = FloatArray(4)
+        val pointPositionsInEyeSpace = FloatArray(12)
+        multiplyMV(vectorToLightInEyeSpace, 0, viewMatrix, 0, vectorToLight, 0)
+        multiplyMV(pointPositionsInEyeSpace, 0, viewMatrix, 0, pointLightPositions, 0)
+        multiplyMV(pointPositionsInEyeSpace, 4, viewMatrix, 0, pointLightPositions, 4)
+        multiplyMV(pointPositionsInEyeSpace, 8, viewMatrix, 0, pointLightPositions, 8)
+
         heightmapProgram.useProgram()
-        heightmapProgram.setUniforms(modelViewProjectionMatrix, vectorToLight)
+
+        heightmapProgram.setUniforms(modelViewMatrix, it_modelViewMatrix,
+            modelViewProjectionMatrix, vectorToLightInEyeSpace,
+            pointPositionsInEyeSpace, pointLightColors);
+
         heightmap.bindData(heightmapProgram)
         heightmap.draw()
     }
