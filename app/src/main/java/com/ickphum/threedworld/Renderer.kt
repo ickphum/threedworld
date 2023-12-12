@@ -74,7 +74,7 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
     private var xRotation = 0f
     private var yRotation = 0f
 
-    private val vectorToLight = Geometry.Vector(0.61f, 0.64f, -0.47f).normalize()
+    private val vectorToLight = Geometry.Vector(0.30f, 0.35f, -0.89f).normalize()
 
     override fun onSurfaceCreated(glUnused: GL10?, p1: javax.microedition.khronos.egl.EGLConfig?) {
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
@@ -119,9 +119,9 @@ class Renderer(context: Context) : GLSurfaceView.Renderer {
         skyboxProgram = SkyboxShaderProgram( context )
         skybox = Skybox()
         skyboxTexture = TextureHelper.loadCubeMap( context,
-            intArrayOf(R.drawable.left, R.drawable.right,
-                R.drawable.bottom, R.drawable.top,
-                R.drawable.front, R.drawable.back))
+            intArrayOf(R.drawable.night_left, R.drawable.night_right,
+                R.drawable.night_bottom, R.drawable.night_top,
+                R.drawable.night_front, R.drawable.night_back))
 
         heightmapProgram = HeightmapShaderProgram( context )
         heightmap = Heightmap( ( context.resources.getDrawable( R.drawable.heightmap ) as BitmapDrawable ).bitmap )

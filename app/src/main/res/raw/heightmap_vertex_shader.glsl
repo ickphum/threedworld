@@ -15,9 +15,10 @@ void main()
     scaledNormal = normalize(scaledNormal);
 
     float diffuse = max(dot(scaledNormal, u_VectorToLight), 0.0);
+    diffuse *= 0.3;
     v_Color *= diffuse;
 
-    float ambient = 0.2;
+    float ambient = 0.1;
     v_Color += ambient;
     
     gl_Position = u_Matrix * vec4(a_Position, 1.0);
